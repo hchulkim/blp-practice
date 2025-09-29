@@ -1,1 +1,1 @@
-FROM hchulkim/r_julia_quarto:latest
+FROM hchulkim/blp_practice
