@@ -1,4 +1,4 @@
-# logit model estimation 
+# logit model estimation
 
 if (!require(pacman)) install.packages("pacman")
 pacman::p_load(here, data.table, fixest, texreg, broom, kableExtra)
@@ -7,8 +7,9 @@ pacman::p_load(here, data.table, fixest, texreg, broom, kableExtra)
 here::i_am("src/ps3-q1.R")
 
 # load data
-data <- fread(here("input", "PS3_data.csv"), 
-    colClasses = list(character = c("market", "period")))
+data <- fread(here("input", "PS3_data.csv"),
+    colClasses = list(character = c("market", "period"))
+)
 
 # create a single market id
 data[, mkt_id := paste0(market, "-", period)]
@@ -37,10 +38,11 @@ data[, haus_iv := {
         NA_real_
     }
 },
-  by = .(period, product_id)]
+by = .(period, product_id)
+]
 
 
-haus_iv_model <- feols(delta ~ calories + organic | price ~ haus_iv, data = data)
+haus_iv_model <- feols(delta ~ 1 | price ~ haus_iv + calories + organic, data = data)
 
 screenreg(haus_iv_model)
 
@@ -79,7 +81,7 @@ data[, closest_calories := {
 
 
 
-blp_iv_model <- feols(delta ~ calories + organic | price ~ n_competing + avg_calories + n_organic + n_organic_interacted + closest_calories + calories + organic, data = data)
+blp_iv_model <- feols(delta ~ 1 | price ~ n_competing + avg_calories + n_organic + n_organic_interacted + closest_calories + calories + organic, data = data)
 
 screenreg(blp_iv_model)
 
@@ -92,5 +94,6 @@ model_dt <- rbind(model_dt, blp_iv_model_dt)
 model_dt <- model_dt[term != "(Intercept)", .(model, term, estimate, std.error)]
 
 # save model_dt
-model_dt |> kbl(format = "latex", booktabs = TRUE, linesep = "", digits = 3) |> save_kable(here("output", "tables", "ps3-q2-model_dt.tex"))
-
+model_dt |>
+    kbl(format = "latex", booktabs = TRUE, linesep = "", digits = 3) |>
+    save_kable(here("output", "tables", "ps3-q2-model_dt.tex"))
