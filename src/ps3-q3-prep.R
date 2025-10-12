@@ -1,32 +1,31 @@
-# logit model estimation
+# prepare data for random coefficient model
 
 if (!require(pacman)) install.packages("pacman")
-pacman::p_load(here, data.table, fixest, texreg, broom, kableExtra)
+pacman::p_load(here, data.table)
 
 # set working directory
-here::i_am("src/ps3-q1.R")
+here::i_am("src/ps3-q3-prep.R")
 
 # load data
 data <- fread(here("input", "PS3_data.csv"),
     colClasses = list(character = c("market", "period"))
 )
 
+# load random draw data
+random_draws <- fread(here("input", "PS3_rnd.csv"),
+    colClasses = list(character = c("market", "period"))
+)
+
 # create a single market id
 data[, mkt_id := paste0(market, "-", period)]
+random_draws[, mkt_id := paste0(market, "-", period)]
 
 # create outside option
 data[, outside_share := 1 - sum(market_share), by = mkt_id]
 
 # create delta from log share - log outside share
-data[, delta := log(market_share) - log(outside_share)]
+data[, delta_initial := log(market_share) - log(outside_share)]
 
-# ols regression
-ols_model <- feols(delta ~ price + calories + organic, data = data)
-
-screenreg(ols_model)
-
-ols_model_dt <- tidy(ols_model) |> as.data.table()
-ols_model_dt[, model := "OLS"]
 
 # Hausman IV regression
 # average price of the product in other markets in the same period t
@@ -40,19 +39,6 @@ data[, haus_iv := {
 },
 by = .(period, product_id)
 ]
-
-
-haus_iv_model <- feols(delta ~ 1 | price ~ haus_iv + calories + organic, data = data)
-
-screenreg(haus_iv_model)
-
-haus_iv_model_dt <- tidy(haus_iv_model) |> as.data.table()
-haus_iv_model_dt[, model := "hausman"]
-
-# combine ols and hausman iv model
-model_dt <- rbind(ols_model_dt, haus_iv_model_dt)
-
-
 
 # BLP IV regression
 
@@ -80,21 +66,10 @@ data[, closest_calories := {
     })
 }, by = "mkt_id"]
 
+# separately save IV
+data[, .(mkt_id, haus_iv, n_competing, avg_calories, n_organic, n_organic_interacted, closest_calories)] |>
+    fwrite(here("input", "ps3-q3-iv.csv"))
 
-
-blp_iv_model <- feols(delta ~ 1 | price ~ n_competing + avg_calories + n_organic + n_organic_interacted + closest_calories + calories + organic, data = data)
-
-screenreg(blp_iv_model)
-
-blp_iv_model_dt <- tidy(blp_iv_model) |> as.data.table()
-blp_iv_model_dt[, model := "blp"]
-
-# combine ols and hausman iv model
-model_dt <- rbind(model_dt, blp_iv_model_dt)
-
-model_dt <- model_dt[term != "(Intercept)", .(model, term, estimate, std.error)]
-
-# save model_dt
-model_dt |>
-    kbl(format = "latex", booktabs = TRUE, linesep = "", digits = 3) |>
-    save_kable(here("output", "tables", "ps3-q2-model_dt.tex"))
+# save the data for estimation
+fwrite(data[, .(market, period, product_id, mkt_id, market_share, calories, organic, price, outside_share, delta_initial)], here("input", "ps3-q3-data.csv"))
+fwrite(random_draws, here("input", "ps3-q3-random_draws.csv"))
