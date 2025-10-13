@@ -1,3 +1,4 @@
+
 using DrWatson
 @quickactivate
 using DataFrames, CSV, LinearAlgebra, Statistics, Optim, NLopt
@@ -87,7 +88,7 @@ end
 # Optimized contraction mapping using precomputed data
 function contraction_optimized(market_data::Vector{MarketData}, obs_shares::Vector{Float64},
     initial_delta::Vector{Float64}, theta_p::Float64, theta_b::Float64,
-    tol=1e-12, maxiter=1000)
+    tol=1e-8, maxiter=1000)
     delta_old = copy(initial_delta)
     normdiff = Inf
     iter = 0
@@ -209,38 +210,3 @@ if !Optim.converged(result_optim)
     println("WARNING: Optimization did not converge!")
     println("Consider adjusting initial parameters or convergence tolerances.")
 end
-
-using FiniteDiff
-
-# function returning the sample moments g(θ)
-function gmm_moments(theta)
-    theta_p, theta_b, alpha_0, alpha_1, alpha_2 = theta
-    delta_values = contraction_optimized(market_data, obs_shares, initial_delta, theta_p, theta_b)
-    error = delta_values .- alpha_0 .* price_vec .- alpha_1 .* calories_vec .- alpha_2 .* organic_vec
-    g = (iv_matrix' * error) ./ data_rows  # sample moments
-    return g
-end
-
-# numerical Jacobian
-G = FiniteDiff.finite_difference_jacobian(gmm_moments, theta_optim)
-
-# residuals
-delta_hat = contraction_optimized(market_data, obs_shares, initial_delta,
-    theta_optim[1], theta_optim[2])
-error_hat = delta_hat .- theta_optim[3] * price_vec .- theta_optim[4] * calories_vec .- theta_optim[5] * organic_vec
-
-# weighting and Ω matrices
-Z = iv_matrix
-W = inv_Phi
-Ω = (Z' * diagm(0 => error_hat .^ 2) * Z) / data_rows
-
-V = inv(G' * W * G) * (G' * W * Ω * W * G) * inv(G' * W * G)
-se = sqrt.(diag(V) / data_rows)
-
-
-param_names = ["θ_p", "θ_b", "α₀", "α₁", "α₂"]
-println("\nParameter estimates and standard errors:")
-for (name, est, s) in zip(param_names, theta_optim, se)
-    println(rpad(name, 5), ": ", round(est, digits=4), " (SE = ", round(s, digits=4), ")")
-end
-

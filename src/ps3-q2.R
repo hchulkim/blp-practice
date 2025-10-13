@@ -98,3 +98,17 @@ model_dt <- model_dt[term != "(Intercept)", .(model, term, estimate, std.error)]
 model_dt |>
     kbl(format = "latex", booktabs = TRUE, linesep = "", digits = 3) |>
     save_kable(here("output", "tables", "ps3-q2-model_dt.tex"))
+
+
+
+vinay <- fread(here("src", "test_data.csv"))
+
+data <- merge(data[, `:=`(market = as.numeric(market), period = as.numeric(period))], vinay, by = c("market", "period", "product_id"))
+
+data[, `:=`(
+    haus_check = haus_iv - hausman_iv,
+    n_competing_check = n_competing - n_comp,
+    avg_calories_check = avg_calories - avg_cal_comp,
+    n_organic_check = n_organic - num_org_comp,
+    closest_calories_check = closest_calories - closest_cal
+)]
