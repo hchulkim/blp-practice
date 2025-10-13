@@ -66,7 +66,7 @@ def _(pyblp):
 
 @app.cell
 def _(pyblp):
-    mc_integration = pyblp.Integration('monte_carlo', size=100, specification_options={'seed':0})
+    mc_integration = pyblp.Integration('monte_carlo', size=5000, specification_options={'seed':0})
     mc_integration
     return (mc_integration,)
 
